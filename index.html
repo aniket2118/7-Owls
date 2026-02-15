@@ -48,7 +48,7 @@
 </div>
 
 <script>
-  const items = [
+  const DEFAULT_ITEMS = [
     { name: "Tedhe Medhe", qty: 21 },
     { name: "Mad Angles", qty: 3 },
     { name: "Kurkure Puffcorn", qty: 5 },
@@ -60,8 +60,20 @@
     { name: "Diet Coke", qty: 5 }
   ];
 
+  // LOAD FROM localStorage OR DEFAULT
+  let items = JSON.parse(localStorage.getItem("items")) || DEFAULT_ITEMS;
+  let totalSale = parseFloat(localStorage.getItem("totalSale")) || 0;
+  let logs = JSON.parse(localStorage.getItem("logs")) || [];
+
   const tableBody = document.querySelector("#inventoryTable tbody");
   const log = document.getElementById("purchaseLog");
+  const totalSaleEl = document.getElementById("totalSale");
+
+  function saveData() {
+    localStorage.setItem("items", JSON.stringify(items));
+    localStorage.setItem("totalSale", totalSale);
+    localStorage.setItem("logs", JSON.stringify(logs));
+  }
 
   function renderTable() {
     tableBody.innerHTML = "";
@@ -78,20 +90,26 @@
     });
   }
 
+  function renderLogs() {
+    log.innerHTML = "";
+    logs.forEach(text => {
+      const li = document.createElement("li");
+      li.textContent = text;
+      log.appendChild(li);
+    });
+  }
+
   function sellAll() {
     let sessionTotal = 0;
+
     items.forEach((item, index) => {
-      const qtyInput = document.getElementById(`qty-${index}`);
-      const buyerInput = document.getElementById(`buyer-${index}`);
-      const amountInput = document.getElementById(`amount-${index}`);
+      const sellQty = parseInt(document.getElementById(`qty-${index}`).value);
+      const buyer = document.getElementById(`buyer-${index}`).value.trim();
+      const amount = parseFloat(document.getElementById(`amount-${index}`).value);
 
-      const sellQty = parseInt(qtyInput.value);
-      const buyer = buyerInput.value.trim();
-      const amount = parseFloat(amountInput.value);
-
-      if (sellQty && sellQty > 0) {
-        if (!buyer || !amount || amount <= 0) {
-          alert(`Missing buyer name or amount for ${item.name}`);
+      if (Number.isInteger(sellQty) && sellQty > 0) {
+        if (!buyer || amount <= 0) {
+          alert(`Missing buyer or amount for ${item.name}`);
           return;
         }
         if (sellQty > item.qty) {
@@ -100,24 +118,27 @@
         }
 
         item.qty -= sellQty;
-        const date = new Date().toLocaleString();
-        const li = document.createElement("li");
-        li.textContent = `${buyer} bought ${sellQty} × ${item.name} for ₹${amount} on ${date}`;
-        sessionTotal += amount; `${buyer} bought ${sellQty} × ${item.name} for ₹${amount} on ${date}`;
-        log.appendChild(li);
+        sessionTotal += amount;
 
-        qtyInput.value = "";
-        buyerInput.value = "";
-        amountInput.value = "";
+        const entry = `${buyer} bought ${sellQty} × ${item.name} for ₹${amount} on ${new Date().toLocaleString()}`;
+        logs.push(entry);
       }
     });
 
-    renderTable();
-    const currentTotal = parseFloat(document.getElementById('totalSale').textContent) || 0;
-    document.getElementById('totalSale').textContent = currentTotal + sessionTotal;
+    if (sessionTotal > 0) {
+      totalSale += sessionTotal;
+      saveData();
+      renderAll();
+    }
   }
 
-  renderTable();
+  function renderAll() {
+    renderTable();
+    renderLogs();
+    totalSaleEl.textContent = totalSale;
+  }
+
+  renderAll();
 </script>
 
 </body>
