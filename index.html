@@ -17,6 +17,17 @@
 </head>
 <body>
 
+<!-- 🔐 LOGIN -->
+<div id="loginBox" style="max-width:300px;margin:100px auto;text-align:center;background:#fff;padding:20px;border-radius:8px;">
+  <h2>🔐 Enter Password</h2>
+  <input type="password" id="passwordInput" placeholder="Password" style="padding:10px;width:100%;margin-bottom:10px;">
+  <button onclick="checkPassword()">Login</button>
+  <p id="error" style="color:red;"></p>
+</div>
+
+<!-- 🛒 MAIN APP -->
+<div id="app" style="display:none;">
+
 <h1>🛒 Snack Inventory & Sales</h1>
 
 <table id="inventoryTable">
@@ -40,6 +51,9 @@
 
 <div class="sell-btn">
   <button onclick="sellAll()">✅ Sell</button>
+  <button onclick="undoLastSale()" style="margin-left:10px;background:#e74c3c;color:#fff;">
+    ↩️ Undo Last Sale
+  </button>
 </div>
 
 <div class="log">
@@ -47,7 +61,30 @@
   <ul id="purchaseLog"></ul>
 </div>
 
+</div>
+
 <script>
+  /* 🔐 PASSWORD */
+  const SITE_PASSWORD = "snack_attack";
+
+  if (sessionStorage.getItem("loggedIn") === "true") showApp();
+
+  function checkPassword() {
+    const input = document.getElementById("passwordInput").value;
+    if (input === SITE_PASSWORD) {
+      sessionStorage.setItem("loggedIn", "true");
+      showApp();
+    } else {
+      document.getElementById("error").textContent = "Wrong password!";
+    }
+  }
+
+  function showApp() {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("app").style.display = "block";
+  }
+
+  /* 🧠 DATA */
   const DEFAULT_ITEMS = [
     { name: "Tedhe Medhe", qty: 21 },
     { name: "Mad Angles", qty: 3 },
@@ -60,82 +97,85 @@
     { name: "Diet Coke", qty: 5 }
   ];
 
-  // LOAD FROM localStorage OR DEFAULT
-  let items = JSON.parse(localStorage.getItem("items")) || DEFAULT_ITEMS;
-  let totalSale = parseFloat(localStorage.getItem("totalSale")) || 0;
+  let items = JSON.parse(localStorage.getItem("items")) || structuredClone(DEFAULT_ITEMS);
   let logs = JSON.parse(localStorage.getItem("logs")) || [];
+  let totalSale = Number(localStorage.getItem("totalSale")) || 0;
 
   const tableBody = document.querySelector("#inventoryTable tbody");
-  const log = document.getElementById("purchaseLog");
+  const logList = document.getElementById("purchaseLog");
   const totalSaleEl = document.getElementById("totalSale");
 
   function saveData() {
     localStorage.setItem("items", JSON.stringify(items));
-    localStorage.setItem("totalSale", totalSale);
     localStorage.setItem("logs", JSON.stringify(logs));
+    localStorage.setItem("totalSale", totalSale);
   }
 
   function renderTable() {
     tableBody.innerHTML = "";
     items.forEach((item, index) => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${item.name}</td>
-        <td>${item.qty}</td>
-        <td><input type="number" min="0" id="qty-${index}" /></td>
-        <td><input type="text" id="buyer-${index}" /></td>
-        <td><input type="number" min="0" id="amount-${index}" /></td>
+      tableBody.innerHTML += `
+        <tr>
+          <td>${item.name}</td>
+          <td>${item.qty}</td>
+          <td><input type="number" min="0" id="qty-${index}"></td>
+          <td><input type="text" id="buyer-${index}"></td>
+          <td><input type="number" min="0" id="amount-${index}"></td>
+        </tr>
       `;
-      tableBody.appendChild(row);
     });
   }
 
   function renderLogs() {
-    log.innerHTML = "";
-    logs.forEach(text => {
+    logList.innerHTML = "";
+    logs.forEach(l => {
       const li = document.createElement("li");
-      li.textContent = text;
-      log.appendChild(li);
+      li.textContent = `${l.buyer} bought ${l.qty} × ${l.item} for ₹${l.amount} on ${l.date}`;
+      logList.appendChild(li);
     });
+    totalSaleEl.textContent = totalSale;
   }
 
   function sellAll() {
-    let sessionTotal = 0;
-
     items.forEach((item, index) => {
-      const sellQty = parseInt(document.getElementById(`qty-${index}`).value);
+      const qty = Number(document.getElementById(`qty-${index}`).value);
       const buyer = document.getElementById(`buyer-${index}`).value.trim();
-      const amount = parseFloat(document.getElementById(`amount-${index}`).value);
+      const amount = Number(document.getElementById(`amount-${index}`).value);
 
-      if (Number.isInteger(sellQty) && sellQty > 0) {
-        if (!buyer || amount <= 0) {
-          alert(`Missing buyer or amount for ${item.name}`);
-          return;
-        }
-        if (sellQty > item.qty) {
-          alert(`Not enough stock for ${item.name}`);
-          return;
-        }
+      if (qty > 0) {
+        if (!buyer || amount <= 0 || qty > item.qty) return alert("Invalid entry");
 
-        item.qty -= sellQty;
-        sessionTotal += amount;
+        item.qty -= qty;
+        totalSale += amount;
 
-        const entry = `${buyer} bought ${sellQty} × ${item.name} for ₹${amount} on ${new Date().toLocaleString()}`;
-        logs.push(entry);
+        logs.push({
+          item: item.name,
+          qty,
+          buyer,
+          amount,
+          date: new Date().toLocaleString()
+        });
       }
     });
 
-    if (sessionTotal > 0) {
-      totalSale += sessionTotal;
-      saveData();
-      renderAll();
-    }
+    saveData();
+    renderAll();
+  }
+
+  function undoLastSale() {
+    if (!logs.length) return alert("No sale to undo");
+
+    const last = logs.pop();
+    items.find(i => i.name === last.item).qty += last.qty;
+    totalSale -= last.amount;
+
+    saveData();
+    renderAll();
   }
 
   function renderAll() {
     renderTable();
     renderLogs();
-    totalSaleEl.textContent = totalSale;
   }
 
   renderAll();
