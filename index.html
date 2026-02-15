@@ -1,184 +1,164 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Snack Inventory System</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f5f5f5; padding:20px; }
-    h1 { text-align:center; }
-    table { width:100%; border-collapse: collapse; margin-top:20px; background:#fff; }
-    th, td { border:1px solid #ccc; padding:10px; text-align:center; }
-    th { background:#222; color:#fff; }
-    input { width:90px; padding:5px; }
-    button { padding:10px 20px; cursor:pointer; font-size:16px; }
-    .log { margin-top:30px; background:#fff; padding:15px; }
-    .sell-btn { margin-top:20px; text-align:center; }
-  </style>
+<meta charset="UTF-8">
+<title>Snack Inventory System</title>
+
+<style>
+body { font-family: Arial; background:#f5f5f5; padding:20px; }
+h1, h2 { text-align:center; }
+table { width:100%; border-collapse: collapse; margin-top:20px; background:#fff; }
+th, td { border:1px solid #ccc; padding:10px; text-align:center; }
+th { background:#222; color:#fff; }
+input { padding:6px; }
+button { padding:10px 18px; cursor:pointer; font-size:15px; margin:5px; }
+.section { background:#fff; padding:15px; margin-top:20px; }
+.hidden { display:none; }
+</style>
 </head>
+
 <body>
 
-<!-- 🔐 LOGIN -->
-<div id="loginBox" style="max-width:300px;margin:100px auto;text-align:center;background:#fff;padding:20px;border-radius:8px;">
+<!-- LOGIN -->
+<div id="loginBox" class="section">
   <h2>🔐 Enter Password</h2>
-  <input type="password" id="passwordInput" placeholder="Password" style="padding:10px;width:100%;margin-bottom:10px;">
-  <button onclick="checkPassword()">Login</button>
-  <p id="error" style="color:red;"></p>
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="login()">Login</button>
 </div>
 
-<!-- 🛒 MAIN APP -->
-<div id="app" style="display:none;">
+<!-- MAIN APP -->
+<div id="app" class="hidden">
 
 <h1>🛒 Snack Inventory & Sales</h1>
 
-<table id="inventoryTable">
-  <thead>
-    <tr>
-      <th>Item</th>
-      <th>Available Qty</th>
-      <th>Sell Qty</th>
-      <th>Buyer Name</th>
-      <th>Amount (₹)</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-  <tfoot>
-    <tr style="font-weight:bold;background:#f0f0f0;">
-      <td colspan="4">Total Sale (₹)</td>
-      <td id="totalSale">0</td>
-    </tr>
-  </tfoot>
-</table>
-
-<div class="sell-btn">
-  <button onclick="sellAll()">✅ Sell</button>
-  <button onclick="undoLastSale()" style="margin-left:10px;background:#e74c3c;color:#fff;">
-    ↩️ Undo Last Sale
-  </button>
+<!-- ADD / UPDATE ITEM -->
+<div class="section">
+  <h3>➕ Add / Update Item</h3>
+  <input id="newItemName" placeholder="Item Name">
+  <input id="newItemQty" type="number" placeholder="Quantity">
+  <button onclick="addOrUpdateItem()">Add / Update</button>
 </div>
 
-<div class="log">
-  <h3>🧾 Purchase Log</h3>
-  <ul id="purchaseLog"></ul>
+<table id="inventoryTable">
+<thead>
+<tr>
+  <th>Item</th>
+  <th>Available Qty</th>
+  <th>Sell Qty</th>
+  <th>Buyer</th>
+  <th>Amount (₹)</th>
+</tr>
+</thead>
+<tbody></tbody>
+<tfoot>
+<tr style="font-weight:bold;">
+  <td colspan="4">Total Sale (₹)</td>
+  <td id="totalSale">0</td>
+</tr>
+</tfoot>
+</table>
+
+<div style="text-align:center;">
+  <button onclick="sellAll()">✅ Sell</button>
+  <button onclick="undoLast()">↩️ Undo Last Sale</button>
+</div>
+
+<div class="section">
+<h3>🧾 Purchase Log</h3>
+<ul id="purchaseLog"></ul>
 </div>
 
 </div>
 
 <script>
-  /* 🔐 PASSWORD */
-  const SITE_PASSWORD = "snack_attack";
+const PASSWORD = "snack_attack";
 
-  if (sessionStorage.getItem("loggedIn") === "true") showApp();
+let DEFAULT_ITEMS = [
+ {name:"Tedhe Medhe",qty:21},
+ {name:"Mad Angles",qty:3},
+ {name:"Kurkure Puffcorn",qty:5}
+];
 
-  function checkPassword() {
-    const input = document.getElementById("passwordInput").value;
-    if (input === SITE_PASSWORD) {
-      sessionStorage.setItem("loggedIn", "true");
-      showApp();
-    } else {
-      document.getElementById("error").textContent = "Wrong password!";
+let items = JSON.parse(localStorage.getItem("items")) || DEFAULT_ITEMS;
+let logs = JSON.parse(localStorage.getItem("logs")) || [];
+let totalSale = parseFloat(localStorage.getItem("totalSale")) || 0;
+let history = JSON.parse(localStorage.getItem("history")) || [];
+
+function login(){
+  if(document.getElementById("password").value === PASSWORD){
+    document.getElementById("loginBox").style.display="none";
+    document.getElementById("app").classList.remove("hidden");
+    renderAll();
+  } else alert("Wrong password");
+}
+
+function save(){
+  localStorage.setItem("items",JSON.stringify(items));
+  localStorage.setItem("logs",JSON.stringify(logs));
+  localStorage.setItem("totalSale",totalSale);
+  localStorage.setItem("history",JSON.stringify(history));
+}
+
+function renderAll(){
+  const body=document.querySelector("#inventoryTable tbody");
+  body.innerHTML="";
+  items.forEach((i,idx)=>{
+    body.innerHTML+=`
+    <tr>
+      <td>${i.name}</td>
+      <td>${i.qty}</td>
+      <td><input id="q${idx}" type="number"></td>
+      <td><input id="b${idx}"></td>
+      <td><input id="a${idx}" type="number"></td>
+    </tr>`;
+  });
+  document.getElementById("totalSale").textContent=totalSale;
+  renderLogs();
+}
+
+function renderLogs(){
+  const ul=document.getElementById("purchaseLog");
+  ul.innerHTML="";
+  logs.forEach(l=>ul.innerHTML+=`<li>${l}</li>`);
+}
+
+function sellAll(){
+  let snap=JSON.parse(JSON.stringify({items,logs,totalSale}));
+  history.push(snap);
+
+  items.forEach((i,idx)=>{
+    let q=parseInt(document.getElementById(`q${idx}`).value);
+    let b=document.getElementById(`b${idx}`).value;
+    let a=parseFloat(document.getElementById(`a${idx}`).value);
+    if(q>0 && q<=i.qty){
+      i.qty-=q;
+      totalSale+=a;
+      logs.push(`${b} bought ${q} × ${i.name} for ₹${a}`);
     }
-  }
+  });
+  save(); renderAll();
+}
 
-  function showApp() {
-    document.getElementById("loginBox").style.display = "none";
-    document.getElementById("app").style.display = "block";
-  }
+function undoLast(){
+  if(!history.length) return alert("Nothing to undo");
+  let last=history.pop();
+  items=last.items; logs=last.logs; totalSale=last.totalSale;
+  save(); renderAll();
+}
 
-  /* 🧠 DATA */
-  const DEFAULT_ITEMS = [
-    { name: "Tedhe Medhe", qty: 21 },
-    { name: "Mad Angles", qty: 3 },
-    { name: "Kurkure Puffcorn", qty: 5 },
-    { name: "Uncle Chips (Blue)", qty: 5 },
-    { name: "Uncle Chips (Green)", qty: 7 },
-    { name: "Bingo Salsa Dip", qty: 5 },
-    { name: "Blue Lays", qty: 5 },
-    { name: "Green Lays", qty: 3 },
-    { name: "Diet Coke", qty: 5 }
-  ];
+function addOrUpdateItem(){
+  let name=document.getElementById("newItemName").value.trim();
+  let qty=parseInt(document.getElementById("newItemQty").value);
+  if(!name||qty<=0) return alert("Enter valid data");
 
-  let items = JSON.parse(localStorage.getItem("items")) || structuredClone(DEFAULT_ITEMS);
-  let logs = JSON.parse(localStorage.getItem("logs")) || [];
-  let totalSale = Number(localStorage.getItem("totalSale")) || 0;
+  let found=items.find(i=>i.name.toLowerCase()===name.toLowerCase());
+  if(found) found.qty+=qty;
+  else items.push({name,qty});
 
-  const tableBody = document.querySelector("#inventoryTable tbody");
-  const logList = document.getElementById("purchaseLog");
-  const totalSaleEl = document.getElementById("totalSale");
-
-  function saveData() {
-    localStorage.setItem("items", JSON.stringify(items));
-    localStorage.setItem("logs", JSON.stringify(logs));
-    localStorage.setItem("totalSale", totalSale);
-  }
-
-  function renderTable() {
-    tableBody.innerHTML = "";
-    items.forEach((item, index) => {
-      tableBody.innerHTML += `
-        <tr>
-          <td>${item.name}</td>
-          <td>${item.qty}</td>
-          <td><input type="number" min="0" id="qty-${index}"></td>
-          <td><input type="text" id="buyer-${index}"></td>
-          <td><input type="number" min="0" id="amount-${index}"></td>
-        </tr>
-      `;
-    });
-  }
-
-  function renderLogs() {
-    logList.innerHTML = "";
-    logs.forEach(l => {
-      const li = document.createElement("li");
-      li.textContent = `${l.buyer} bought ${l.qty} × ${l.item} for ₹${l.amount} on ${l.date}`;
-      logList.appendChild(li);
-    });
-    totalSaleEl.textContent = totalSale;
-  }
-
-  function sellAll() {
-    items.forEach((item, index) => {
-      const qty = Number(document.getElementById(`qty-${index}`).value);
-      const buyer = document.getElementById(`buyer-${index}`).value.trim();
-      const amount = Number(document.getElementById(`amount-${index}`).value);
-
-      if (qty > 0) {
-        if (!buyer || amount <= 0 || qty > item.qty) return alert("Invalid entry");
-
-        item.qty -= qty;
-        totalSale += amount;
-
-        logs.push({
-          item: item.name,
-          qty,
-          buyer,
-          amount,
-          date: new Date().toLocaleString()
-        });
-      }
-    });
-
-    saveData();
-    renderAll();
-  }
-
-  function undoLastSale() {
-    if (!logs.length) return alert("No sale to undo");
-
-    const last = logs.pop();
-    items.find(i => i.name === last.item).qty += last.qty;
-    totalSale -= last.amount;
-
-    saveData();
-    renderAll();
-  }
-
-  function renderAll() {
-    renderTable();
-    renderLogs();
-  }
-
-  renderAll();
+  save(); renderAll();
+  document.getElementById("newItemName").value="";
+  document.getElementById("newItemQty").value="";
+}
 </script>
 
 </body>
